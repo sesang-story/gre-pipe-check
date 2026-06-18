@@ -232,6 +232,11 @@ with col_btn2:
             try:
                 # 구글 인증서 로드 (Streamlit Secrets 사용)
                 gcp_creds = json.loads(st.secrets["gcp_service_account"])
+                
+                # 💡 중요: TOML로 인해 텍스트로 깨진 줄바꿈(\n) 문자 복원
+                if "private_key" in gcp_creds:
+                    gcp_creds["private_key"] = gcp_creds["private_key"].replace("\\n", "\n")
+                
                 creds = Credentials.from_service_account_info(
                     gcp_creds, 
                     scopes=["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]

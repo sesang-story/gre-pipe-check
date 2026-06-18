@@ -82,7 +82,7 @@ for i, q in enumerate(questions, 1):
         remark = st.text_input("조치내용", placeholder="조치내용 입력...", key=f"remark_{i}", label_visibility="collapsed")
     basic_results.append({"순번": i, "항목": q, "결과": status, "비고": remark if remark else "-"})
 
-# 💡 [핵심] 전체 판정 로직: 10개 중 하나라도 '양호'가 아니면 '불량'
+# 전체 판정 로직: 10개 중 하나라도 '양호'가 아니면 '불량'
 overall_status = "양호"
 for item in basic_results:
     if item["결과"] != "양호":
@@ -166,7 +166,7 @@ if not final_torque_data and (dia_t or elem1 or elem2):
     final_torque_data = [[dia_t, elem1, elem2, t_val, serial]]
 
 # ==========================================
-# 5. 엑셀 서식 생성 (기존 유지)
+# 5. 엑셀 서식 생성
 # ==========================================
 def generate_report(align_list, torque_list):
     wb = openpyxl.Workbook()
@@ -312,41 +312,4 @@ with col_btn1:
                 gc = gspread.authorize(creds)
                 sh = gc.open_by_key(SPREADSHEET_ID)
                 
-                # 💡 구글 시트 요약 전송 로직: 입력날짜, 호선, 블록, TAG NO, 담당자, 점검결과
-                formatted_date = datetime.now().strftime('%y-%m-%d')
-                summary_row = [formatted_date, hull_no, block_no, tag_no, doc_author, overall_status]
-                
-                # '기본점검로그' 탭에 요약된 딱 1줄만 전송합니다
-                sh.worksheet("기본점검로그").append_row(summary_row)
-                
-                # 필요시 얼라인먼트와 토크 데이터도 별도 탭에 기록
-                if final_align_data:
-                    sh.worksheet("얼라인먼트로그").append_rows([[formatted_date, hull_no, tag_no] + row for row in final_align_data])
-                if final_torque_data:
-                    sh.worksheet("토크로그").append_rows([[formatted_date, hull_no, tag_no] + row for row in final_torque_data])
-                
-                st.success("🎉 구글 시트 데이터 누적 완료!")
-            except Exception as e:
-                st.error(f"시트 전송 실패: {e}")
-
-with col_btn2:
-    try:
-        excel_bytes = generate_report(final_align_data, final_torque_data)
-        file_name = f"{doc_no}.xlsx"
-        st.download_button(
-            label="📥 2단계: 양식 다운로드 (Excel)",
-            data=excel_bytes,
-            file_name=file_name,
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            use_container_width=True
-        )
-    except Exception as e:
-        st.warning("보고서 엑셀을 생성하는 중 오류가 발생했습니다.")
-
-st.markdown("---")
-if st.button("🔄 새로운 점검 시작 (입력창 초기화)", use_container_width=True):
-    st.session_state['align_data'] = []
-    st.session_state['torque_data'] = []
-    st.session_state['photo1'] = None
-    st.session_state['photo2'] = None
-    st.rerun()
+                #

@@ -21,6 +21,8 @@ if 'align_data' not in st.session_state: st.session_state['align_data'] = []
 if 'torque_data' not in st.session_state: st.session_state['torque_data'] = []
 if 'photo1' not in st.session_state: st.session_state['photo1'] = None
 if 'photo2' not in st.session_state: st.session_state['photo2'] = None
+if 'photo3' not in st.session_state: st.session_state['photo3'] = None
+if 'photo4' not in st.session_state: st.session_state['photo4'] = None
 
 st.title("🛠️ GRE PIPE 모바일 체크시트")
 st.markdown("---")
@@ -82,7 +84,6 @@ for i, q in enumerate(questions, 1):
         remark = st.text_input("조치내용", placeholder="조치내용 입력...", key=f"remark_{i}", label_visibility="collapsed")
     basic_results.append({"순번": i, "항목": q, "결과": status, "비고": remark if remark else "-"})
 
-# 전체 판정 로직: 10개 중 하나라도 '양호'가 아니면 '불량'
 overall_status = "양호"
 for item in basic_results:
     if item["결과"] != "양호":
@@ -136,9 +137,9 @@ with tab2:
 st.markdown("---")
 
 # ==========================================
-# 4. 현장 증빙 사진 
+# 4. 토크렌치 사진
 # ==========================================
-st.header("3. 현장 증빙 사진")
+st.header("3. 토크렌치")
 col_p1, col_p2 = st.columns(2)
 
 with col_p1:
@@ -157,6 +158,28 @@ with col_p2:
 
 st.markdown("---")
 
+# ==========================================
+# 5. 현장 사진 (신규 추가)
+# ==========================================
+st.header("4. 현장 사진")
+col_p3, col_p4 = st.columns(2)
+
+with col_p3:
+    st.markdown("**📸 현장 사진 1**")
+    cam3 = st.camera_input("카메라 3", key="cam3", label_visibility="collapsed")
+    up3 = st.file_uploader("업로드 3", type=["png", "jpg", "jpeg"], key="up3", label_visibility="collapsed")
+    if cam3: st.session_state['photo3'] = cam3.getvalue()
+    elif up3: st.session_state['photo3'] = up3.getvalue()
+
+with col_p4:
+    st.markdown("**📸 현장 사진 2**")
+    cam4 = st.camera_input("카메라 4", key="cam4", label_visibility="collapsed")
+    up4 = st.file_uploader("업로드 4", type=["png", "jpg", "jpeg"], key="up4", label_visibility="collapsed")
+    if cam4: st.session_state['photo4'] = cam4.getvalue()
+    elif up4: st.session_state['photo4'] = up4.getvalue()
+
+st.markdown("---")
+
 final_align_data = st.session_state['align_data'].copy()
 if not final_align_data and (dia_a or coup_no): 
     final_align_data = [[dia_a, coup_no, top, bottom, port, stb, gap, rem_a]]
@@ -166,7 +189,7 @@ if not final_torque_data and (dia_t or elem1 or elem2):
     final_torque_data = [[dia_t, elem1, elem2, t_val, serial]]
 
 # ==========================================
-# 5. 엑셀 서식 생성
+# 6. 엑셀 서식 생성
 # ==========================================
 def generate_report(align_list, torque_list):
     wb = openpyxl.Workbook()
@@ -271,19 +294,63 @@ def generate_report(align_list, torque_list):
             apply_style(ws.cell(row=row_idx, column=col), BODY_FONT, ALIGN_C, THIN_BORDER)
         ws.merge_cells(f"E{row_idx}:H{row_idx}")
 
+    # ==========================================
+    # 💡 4. 현장 사진 (4칸 꽉 차게 리사이징)
+    # ==========================================
     row_idx += 3
-    ws.cell(row=row_idx, column=1, value="4. 증빙 사진 (Visual Evidence)").font = SUB_FONT
+    ws.cell(row=row_idx, column=1, value="4. 현장 사진").font = SUB_FONT
     row_idx += 1
+    
+    # 1열 사진 타이틀 (토크렌치)
+    ws.cell(row=row_idx, column=1, value="[토크렌치 교정번호]"); apply_style(ws.cell(row=row_idx, column=1), BODY_BOLD, ALIGN_C, THIN_BORDER, SUB_FILL)
+    ws.cell(row=row_idx, column=5, value="[토크렌치 세팅 값]"); apply_style(ws.cell(row=row_idx, column=5), BODY_BOLD, ALIGN_C, THIN_BORDER, SUB_FILL)
+    ws.merge_cells(f"A{row_idx}:D{row_idx}")
+    ws.merge_cells(f"E{row_idx}:H{row_idx}")
+    for c in range(2, 5): ws.cell(row=row_idx, column=c).border = THIN_BORDER
+    for c in range(6, 9): ws.cell(row=row_idx, column=c).border = THIN_BORDER
+    
+    row_idx += 1
+    # 1열 사진 데이터 박스 생성
+    ws.row_dimensions[row_idx].height = 190
+    for c in range(1, 9): ws.cell(row=row_idx, column=c).border = THIN_BORDER
+    ws.merge_cells(f"A{row_idx}:D{row_idx}")
+    ws.merge_cells(f"E{row_idx}:H{row_idx}")
     
     if st.session_state['photo1']:
         img1 = xlImage(io.BytesIO(st.session_state['photo1']))
-        img1.width, img1.height = 300, 250
+        img1.width, img1.height = 310, 240
         ws.add_image(img1, f"A{row_idx}")
         
     if st.session_state['photo2']:
         img2 = xlImage(io.BytesIO(st.session_state['photo2']))
-        img2.width, img2.height = 300, 250
+        img2.width, img2.height = 310, 240
         ws.add_image(img2, f"E{row_idx}")
+
+    row_idx += 1
+    # 2열 사진 타이틀 (현장 사진)
+    ws.cell(row=row_idx, column=1, value="[현장 사진 1]"); apply_style(ws.cell(row=row_idx, column=1), BODY_BOLD, ALIGN_C, THIN_BORDER, SUB_FILL)
+    ws.cell(row=row_idx, column=5, value="[현장 사진 2]"); apply_style(ws.cell(row=row_idx, column=5), BODY_BOLD, ALIGN_C, THIN_BORDER, SUB_FILL)
+    ws.merge_cells(f"A{row_idx}:D{row_idx}")
+    ws.merge_cells(f"E{row_idx}:H{row_idx}")
+    for c in range(2, 5): ws.cell(row=row_idx, column=c).border = THIN_BORDER
+    for c in range(6, 9): ws.cell(row=row_idx, column=c).border = THIN_BORDER
+    
+    row_idx += 1
+    # 2열 사진 데이터 박스 생성
+    ws.row_dimensions[row_idx].height = 190
+    for c in range(1, 9): ws.cell(row=row_idx, column=c).border = THIN_BORDER
+    ws.merge_cells(f"A{row_idx}:D{row_idx}")
+    ws.merge_cells(f"E{row_idx}:H{row_idx}")
+    
+    if st.session_state['photo3']:
+        img3 = xlImage(io.BytesIO(st.session_state['photo3']))
+        img3.width, img3.height = 310, 240
+        ws.add_image(img3, f"A{row_idx}")
+        
+    if st.session_state['photo4']:
+        img4 = xlImage(io.BytesIO(st.session_state['photo4']))
+        img4.width, img4.height = 310, 240
+        ws.add_image(img4, f"E{row_idx}")
 
     widths = [13, 17, 13, 13, 13, 13, 13, 20]
     for i, w in enumerate(widths, 1): ws.column_dimensions[get_column_letter(i)].width = w
@@ -293,12 +360,12 @@ def generate_report(align_list, torque_list):
     return output.getvalue()
 
 # ==========================================
-# 6. 구글 시트 전송 & 다운로드 버튼
+# 7. 구글 시트 전송 & 다운로드 버튼
 # ==========================================
 col_btn1, col_btn2 = st.columns(2)
 
 with col_btn1:
-    if st.button("🚀 1단계: 구글 시트 데이터 전송", type="primary", use_container_width=True):
+    if st.button("🚀 데이터 전송", type="primary", use_container_width=True):
         with st.spinner("구글 시트에 스마트 요약 누적 중..."):
             try:
                 gcp_creds = json.loads(st.secrets["gcp_service_account"])
@@ -313,7 +380,13 @@ with col_btn1:
                 sh = gc.open_by_key(SPREADSHEET_ID)
                 
                 formatted_date = doc_date.strftime('%y-%m-%d')
-                photo_status = "유" if (st.session_state['photo1'] or st.session_state['photo2']) else "무"
+                
+                # 💡 사진 4개 중 1개라도 있으면 "유", 아니면 "무" 자동 판정
+                if st.session_state['photo1'] or st.session_state['photo2'] or st.session_state['photo3'] or st.session_state['photo4']:
+                    photo_status = "유"
+                else:
+                    photo_status = "무"
+                    
                 summary_row = [formatted_date, hull_no, block_no, tag_no, final_dept_name, doc_author, overall_status, photo_status]
                 
                 sh.worksheet("기본점검로그").append_row(summary_row)
@@ -332,7 +405,7 @@ with col_btn2:
         excel_bytes = generate_report(final_align_data, final_torque_data)
         file_name = f"{doc_no}.xlsx"
         st.download_button(
-            label="📥 2단계: 양식 다운로드 (Excel)",
+            label="📥 양식 다운로드(Excel)",
             data=excel_bytes,
             file_name=file_name,
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -347,4 +420,6 @@ if st.button("🔄 새로운 점검 시작 (입력창 초기화)", use_container
     st.session_state['torque_data'] = []
     st.session_state['photo1'] = None
     st.session_state['photo2'] = None
+    st.session_state['photo3'] = None
+    st.session_state['photo4'] = None
     st.rerun()

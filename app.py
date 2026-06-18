@@ -15,15 +15,15 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
 
 # ==========================================
-# ⚙️ 구글 클라우드 고유 ID 설정 (프로님의 ID로 변경해 주세요)
+# ⚙️ 구글 클라우드 고유 ID 설정 (프로님의 ID로 변경 필수)
 # ==========================================
-SPREADSHEET_ID = "https://docs.google.com/spreadsheets/d/1GNKbHoS7950PqjZNB0xqJIRBuEQnqSGbpCqpOiAGI-U/edit?gid=1848578634#gid=1848578634"
+SPREADSHEET_ID = "https://docs.google.com/spreadsheets/d/1GNKbHoS7950PqjZNB0xqJIRBuEQnqSGbpCqpOiAGI-U/edit?gid=0#gid=0"
 DRIVE_FOLDER_ID = "https://drive.google.com/drive/u/0/folders/1tjT9Tw8xCty-gjZkCT8_rleyQHYodoS1"
 
-# 모바일 뷰 최적화
+# 모바일 뷰 최적화 설정
 st.set_page_config(page_title="GRE PIPE 모바일 체크시트", layout="wide", initial_sidebar_state="collapsed")
 
-# 세션 상태 초기화
+# 세션 상태 초기화 (데이터 및 사진 누적용)
 if 'align_data' not in st.session_state: st.session_state['align_data'] = []
 if 'torque_data' not in st.session_state: st.session_state['torque_data'] = []
 if 'photo1' not in st.session_state: st.session_state['photo1'] = None
@@ -56,7 +56,7 @@ for i, q in enumerate(questions, 1):
     with col1:
         status = st.radio("점검결과", ["양호", "불량", "해당없음"], key=f"status_{i}", horizontal=True, label_visibility="collapsed")
     with col2:
-        remark = st.text_input("조치내용", placeholder="조치내용...", key=f"remark_{i}", label_visibility="collapsed")
+        remark = st.text_input("조치내용", placeholder="조치내용 입력...", key=f"remark_{i}", label_visibility="collapsed")
     basic_results.append({"순번": i, "항목": q, "결과": status, "비고": remark})
     st.write("") 
 
@@ -97,10 +97,10 @@ with tab2:
         elem1 = st.text_input("ELEM.NO (1)", key="elem1")
         t_val = st.text_input("TORQUE VALUE", key="t_val")
     if st.button("➕ TORQUE 추가", use_container_width=True):
-        st.session_state['torque_data'].append([dia_t, elem1, elem2, t_val, serial, "", "", ""])
+        st.session_state['torque_data'].append([dia_t, elem1, elem2, t_val, serial])
         st.success("리스트에 추가되었습니다.")
     if st.session_state['torque_data']:
-        st.dataframe(pd.DataFrame(st.session_state['torque_data']).iloc[:, :5], use_container_width=True)
+        st.dataframe(pd.DataFrame(st.session_state['torque_data'], columns=["DIA", "ELEM.NO 1", "ELEM.NO 2", "토크 값", "토크렌치 S/N"]), use_container_width=True)
 
 st.markdown("---")
 
@@ -127,13 +127,13 @@ with col2:
 st.markdown("---")
 
 # ==========================================
-# 4. 엑셀 보고서 양식 생성 함수
+# 4. 정식 보고서 서식 양식 생성 함수
 # ==========================================
 def generate_report():
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "품질검사보고서"
-    ws.views.sheetView[0].showGridLines = False
+    ws.views.sheetView[0].showGridLines = True
 
     NAVY_FILL = PatternFill(start_color="1F4E78", end_color="1F4E78", fill_type="solid")
     WHITE_FONT = Font(name="맑은 고딕", size=11, bold=True, color="FFFFFF")
@@ -176,7 +176,7 @@ def generate_report():
         for col in range(1, 9): apply_style(ws.cell(row=row_idx, column=col), BODY_FONT, ALIGN_C if col!=2 else ALIGN_L, THIN_BORDER)
         
     row_idx += 2
-    ws.cell(row=row_idx, column=1, value="2. ALIGNMENT & TORQUE CHECK RESULT").font = Font(name="맑은 고딕", size=12, bold=True)
+    ws.cell(row=row_idx, column=1, value="2. ALIGNMENT CHECK RESULT").font = Font(name="맑은 고딕", size=12, bold=True)
     row_idx += 1
     
     align_h = ["DIA", "COUPLING NO", "TOP", "BOTTOM", "PORT", "STB", "GAP", "REMARK"]
@@ -186,7 +186,10 @@ def generate_report():
         for col, val in enumerate(row_data, 1): apply_style(ws.cell(row=row_idx, column=col, value=val), BODY_FONT, ALIGN_C, THIN_BORDER)
 
     row_idx += 2
-    torque_h = ["DIA", "ELEM.NO 1", "ELEM.NO 2", "토크 값", "토크렌치 S/N", "", "", ""]
+    ws.cell(row=row_idx, column=1, value="3. TORQUE VALUE CHECK RESULT").font = Font(name="맑은 고딕", size=12, bold=True)
+    row_idx += 1
+    
+    torque_h = ["DIA", "ELEM.NO 1", "ELEM.NO 2", "토크 값 (N·m)", "토크렌치 S/N", "", "", ""]
     ws.merge_cells(f"E{row_idx}:H{row_idx}")
     for col, h in enumerate(torque_h, 1):
         apply_style(ws.cell(row=row_idx, column=col), WHITE_FONT, ALIGN_C, THIN_BORDER, NAVY_FILL)
@@ -194,23 +197,23 @@ def generate_report():
     for row_data in st.session_state['torque_data']:
         row_idx += 1
         ws.merge_cells(f"E{row_idx}:H{row_idx}")
-        for col, val in enumerate(row_data, 1): apply_style(ws.cell(row=row_idx, column=col, value=val), BODY_FONT, ALIGN_C, THIN_BORDER)
+        for col, val in enumerate(row_data, 1): apply_style(ws.cell(row=row_idx, column=col), BODY_FONT, ALIGN_C, THIN_BORDER)
 
     row_idx += 3
-    ws.cell(row=row_idx, column=1, value="3. 증빙 사진 (Visual Evidence)").font = Font(name="맑은 고딕", size=12, bold=True)
+    ws.cell(row=row_idx, column=1, value="4. 증빙 사진 (Visual Evidence)").font = Font(name="맑은 고딕", size=12, bold=True)
     row_idx += 1
     
     if st.session_state['photo1']:
         img1 = xlImage(io.BytesIO(st.session_state['photo1']))
-        img1.width, img1.height = 300, 300
+        img1.width, img1.height = 280, 250
         ws.add_image(img1, f"A{row_idx}")
         
     if st.session_state['photo2']:
         img2 = xlImage(io.BytesIO(st.session_state['photo2']))
-        img2.width, img2.height = 300, 300
+        img2.width, img2.height = 280, 250
         ws.add_image(img2, f"E{row_idx}")
 
-    widths = [8, 15, 12, 12, 12, 12, 12, 25]
+    widths = [10, 16, 12, 12, 12, 12, 12, 25]
     for i, w in enumerate(widths, 1): ws.column_dimensions[get_column_letter(i)].width = w
 
     output = io.BytesIO()
@@ -220,69 +223,61 @@ def generate_report():
 # ==========================================
 # 5. 하단 제어부 및 클라우드 동기화 로직
 # ==========================================
-col_btn1, col_btn2 = st.columns(2)
-
-with col_btn1:
-    if st.button("💾 임시저장", use_container_width=True):
-        st.toast("현재까지 작성된 내용이 브라우저 세션에 임시저장 되었습니다.")
-
-with col_btn2:
-    if st.button("🚀 점검결과 제출 및 클라우드 동기화", type="primary", use_container_width=True):
-        with st.spinner("구글 클라우드(시트/드라이브)에 전송 중입니다..."):
-            try:
-                # ─── 구글 인증서 로드 (GitHub에 업로드한 JSON 파일 읽기) ───
-                import json
-                with open('google_creds.json', 'r') as f:
-                    gcp_creds = json.load(f)
+if st.button("🚀 점검결과 제출 및 클라우드 동기화", type="primary", use_container_width=True):
+    with st.spinner("구글 클라우드에 실시간 전송 및 데이터 저장 중..."):
+        try:
+            # 1. 구글 인증서 로드 및 서명 오류 전처리 (\n 복원)
+            gcp_creds = json.loads(st.secrets["gcp_service_account"])
+            if "private_key" in gcp_creds:
+                gcp_creds["private_key"] = gcp_creds["private_key"].replace("\\n", "\n")
+            
+            creds = Credentials.from_service_account_info(
+                gcp_creds, 
+                scopes=["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+            )
+            current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            
+            # 2. 구글 스프레드시트 데이터 연동 및 누적
+            gc = gspread.authorize(creds)
+            sh = gc.open_by_key(SPREADSHEET_ID)
+            
+            # 탭 1: 기본점검로그 누적
+            sheet_basic = sh.worksheet("기본점검로그")
+            basic_rows = [[current_time, item["순번"], item["항목"], item["결과"], item["비고"]] for item in basic_results]
+            sheet_basic.append_rows(basic_rows)
+            
+            # 탭 2: 얼라인먼트로그 누적
+            if st.session_state['align_data']:
+                sheet_align = sh.worksheet("얼라인먼트로그")
+                align_rows = [[current_time] + row for row in st.session_state['align_data']]
+                sheet_align.append_rows(align_rows)
                 
-                # 💡 중요: 깃허브 업로드/붙여넣기 시 텍스트로 깨진 줄바꿈(\n) 문자 완벽 복원
-                if "private_key" in gcp_creds:
-                    gcp_creds["private_key"] = gcp_creds["private_key"].replace("\\n", "\n")
-                
-                creds = Credentials.from_service_account_info(
-                    gcp_creds, 
-                    scopes=["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
-                )
-                current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                
-                # ─── 구글 스프레드시트 데이터 전송 ───
-                gc = gspread.authorize(creds)
-                sh = gc.open_by_key(SPREADSHEET_ID)
-                
-                # 기본점검사항 누적
-                sheet_basic = sh.worksheet("기본점검로그")
-                basic_rows = [[current_time, item["순번"], item["항목"], item["결과"], item["비고"]] for item in basic_results]
-                sheet_basic.append_rows(basic_rows)
-                
-                # 얼라인먼트 데이터 누적
-                if st.session_state['align_data']:
-                    sheet_align = sh.worksheet("얼라인먼트로그")
-                    align_rows = [[current_time] + row for row in st.session_state['align_data']]
-                    sheet_align.append_rows(align_rows)
-                    
-                # 토크 데이터 누적
-                if st.session_state['torque_data']:
-                    sheet_torque = sh.worksheet("토크로그")
-                    torque_rows = [[current_time] + row[:5] for row in st.session_state['torque_data']]
-                    sheet_torque.append_rows(torque_rows)
-                
-                # ─── 구글 드라이브 보고서 파일 업로드 ───
-                excel_bytes = generate_report()
-                file_name = f"GRE_PIPE_품질검사보고서_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
-                
-                drive_service = build('drive', 'v3', credentials=creds)
-                file_metadata = {'name': file_name, 'parents': [DRIVE_FOLDER_ID]}
-                media = MediaIoBaseUpload(
-                    io.BytesIO(excel_bytes), 
-                    mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 
-                    resumable=True
-                )
-                drive_file = drive_service.files().create(body=file_metadata, media_body=media, fields='id').execute()
-                
-                st.success("🎉 구글 클라우드 동기화 성공!")
-                st.info("📊 구글 스프레드시트에 점검 데이터가 실시간 누적되었습니다.")
-                st.info(f"📁 구글 드라이브에 정식 보고서 파일이 저장되었습니다.")
-                
-            except Exception as e:
-                st.error(f"클라우드 전송 실패: {e}")
-                st.warning("폴더에 'google_creds.json' 파일이 있는지, 시트와 폴더 공유 설정이 되어 있는지 확인해 주세요.")
+            # 탭 3: 토크로그 누적
+            if st.session_state['torque_data']:
+                sheet_torque = sh.worksheet("토크로그")
+                torque_rows = [[current_time] + row for row in st.session_state['torque_data']]
+                sheet_torque.append_rows(torque_rows)
+            
+            # 3. 구글 드라이브 보고서 엑셀 파일 자동 업로드
+            excel_bytes = generate_report()
+            file_name = f"GRE_PIPE_품질검사보고서_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+            
+            drive_service = build('drive', 'v3', credentials=creds)
+            file_metadata = {'name': file_name, 'parents': [DRIVE_FOLDER_ID]}
+            media = MediaIoBaseUpload(
+                io.BytesIO(excel_bytes), 
+                mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 
+                resumable=True
+            )
+            drive_service.files().create(body=file_metadata, media_body=media, fields='id').execute()
+            
+            st.success("🎉 구글 클라우드 동기화 성공!")
+            st.balloons()
+            
+            # 세션 초기화
+            st.session_state['align_data'] = []
+            st.session_state['torque_data'] = []
+            st.rerun()
+            
+        except Exception as e:
+            st.error(f"클라우드 전송 실패: {e}")

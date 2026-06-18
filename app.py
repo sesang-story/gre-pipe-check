@@ -7,8 +7,6 @@ from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.drawing.image import Image as xlImage
 from openpyxl.utils import get_column_letter
 from datetime import datetime
-
-# 구글 API 라이브러리
 import gspread
 from google.oauth2.service_account import Credentials
 
@@ -17,7 +15,6 @@ from google.oauth2.service_account import Credentials
 # ==========================================
 SPREADSHEET_ID = "1GNKbHoS7950PqjZNB0xqJIRBuEQnqSGbpCqpOiAGI-U"
 
-# 모바일 뷰 최적화
 st.set_page_config(page_title="GRE PIPE 모바일 체크시트", layout="wide", initial_sidebar_state="collapsed")
 
 # 세션 상태 초기화
@@ -30,40 +27,41 @@ st.title("🛠️ GRE PIPE 모바일 체크시트")
 st.markdown("---")
 
 # ==========================================
-# 📝 보고서 현장 정보 (캐시 충돌 방지 고유 Key 적용)
+# 📝 1. 보고서 현장 정보 (문서번호 실시간 갱신)
 # ==========================================
 with st.expander("📄 보고서 현장 정보 (보고서 및 클라우드 동기화)", expanded=True):
     col_m1, col_m2 = st.columns(2)
     with col_m1:
-        doc_date = st.date_input("작성일자", datetime.now(), key="doc_date")
-        hull_no = st.text_input("호선 (Hull No.)", placeholder="예: SN2717", key="hull_no")
-        block_no = st.text_input("블록 (Block)", placeholder="예: D620S", key="block_no")
-        tag_no = st.text_input("TAG NO.", placeholder="예: CG001", key="tag_no")
+        doc_date = st.date_input("작성일자", datetime.now())
+        hull_no = st.text_input("호선 (Hull No.)", placeholder="예: SN2717")
+        block_no = st.text_input("블록 (Block)", placeholder="예: D620S")
+        tag_no = st.text_input("TAG NO.", placeholder="예: CG001")
         
     with col_m2:
-        # 💡 드롭다운 캐시 충돌 방지를 위해 새로운 key 부여 및 목록 업데이트
-        dept_name = st.selectbox("소속", ["선택 안함", "선행의장 1과", "1직1반", "1직2반", "2직1반", "3직1반", "3직2반", "4직2반", "4직3반", "대영기업"], key="dept_select")
-        doc_area = st.text_input("AREA", placeholder="예: E21 현장", key="area_input")
-        doc_author = st.text_input("이름 (작성자)", value="", key="author_input")
+        dept_name = st.selectbox("소속", ["선택 안함", "선행의장 1과", "1직1반", "1직2반", "2직1반", "3직1반", "3직2반", "4직2반", "4직3반", "대영기업"])
+        doc_area = st.text_input("AREA", placeholder="예: 3001")
+        doc_author = st.text_input("이름 (작성자)", value="")
 
-    # 💡 문서번호 자동 생성 로직
-    auto_doc_no = "SHI-GRE"
-    if hull_no: auto_doc_no += f"-{hull_no.strip()}"
-    if block_no: auto_doc_no += f"-{block_no.strip()}"
-    if tag_no: auto_doc_no += f"-{tag_no.strip()}"
+    # 문서번호 실시간 조립 로직
+    parts = ["SHI-GRE"]
+    if hull_no: parts.append(hull_no.strip())
+    if block_no: parts.append(block_no.strip())
+    if tag_no: parts.append(tag_no.strip())
     
-    if auto_doc_no == "SHI-GRE":
-        auto_doc_no = f"SHI-GRE-{datetime.now().strftime('%Y%m')}-001"
+    if len(parts) == 1:
+        doc_no = f"SHI-GRE-{datetime.now().strftime('%Y%m')}-001"
+    else:
+        doc_no = "-".join(parts)
         
-    doc_no = auto_doc_no
-    st.text_input("문서번호 (자동생성)", value=doc_no, disabled=True, key="doc_no_display")
+    # 화면에 실시간으로 즉시 반영되도록 info 알림창 사용
+    st.info(f"**📑 문서번호 (자동생성):** {doc_no}")
 
 final_dept_name = "" if dept_name == "선택 안함" else dept_name
 
 st.markdown("---")
 
 # ==========================================
-# 1. 기본 확인 사항
+# 2. 기본 점검 사항
 # ==========================================
 st.header("1. 기본 점검 사항")
 questions = [
@@ -88,17 +86,16 @@ for i, q in enumerate(questions, 1):
     with col2:
         remark = st.text_input("조치내용", placeholder="조치내용 입력...", key=f"remark_{i}", label_visibility="collapsed")
     basic_results.append({"순번": i, "항목": q, "결과": status, "비고": remark if remark else "-"})
-    st.write("") 
 
 st.markdown("---")
 
 # ==========================================
-# 2. 데이터 입력 (렌더링 보호 변수 초기화)
+# 3. 데이터 입력 (얼라인먼트 & 토크)
 # ==========================================
 st.header("2. 데이터 입력")
 st.info("💡 값을 입력한 후 [➕ 추가] 버튼을 안 눌러도, 입력된 값은 보고서에 자동으로 1줄 반영됩니다!")
 
-# 렌더링 끊김 방지를 위한 사전 변수 선언
+# 렌더링 끊김 방지를 위한 기본값 세팅
 dia_a = top = port = gap = coup_no = bottom = stb = ""
 rem_a = "정상 범위 내"
 dia_t = elem2 = elem1 = t_val = ""
@@ -121,8 +118,6 @@ with tab1:
     if st.button("➕ ALIGNMENT 리스트에 추가 (여러 개 입력 시)", use_container_width=True):
         st.session_state['align_data'].append([dia_a, coup_no, top, bottom, port, stb, gap, rem_a])
         st.success("리스트에 추가되었습니다.")
-    if st.session_state['align_data']:
-        st.dataframe(pd.DataFrame(st.session_state['align_data'], columns=["DIA", "COUP_NO", "TOP", "BOTTOM", "PORT", "STB", "GAP", "REMARK"]), use_container_width=True)
 
 with tab2:
     col_t1, col_t2 = st.columns(2)
@@ -136,13 +131,11 @@ with tab2:
     if st.button("➕ TORQUE 리스트에 추가 (여러 개 입력 시)", use_container_width=True):
         st.session_state['torque_data'].append([dia_t, elem1, elem2, t_val, serial])
         st.success("리스트에 추가되었습니다.")
-    if st.session_state['torque_data']:
-        st.dataframe(pd.DataFrame(st.session_state['torque_data'], columns=["DIA", "ELEM.NO 1", "ELEM.NO 2", "토크 값", "토크렌치 S/N"]), use_container_width=True)
 
 st.markdown("---")
 
 # ==========================================
-# 3. 현장 증빙 사진 
+# 4. 현장 증빙 사진 
 # ==========================================
 st.header("3. 현장 증빙 사진")
 col_p1, col_p2 = st.columns(2)
@@ -150,14 +143,14 @@ col_p1, col_p2 = st.columns(2)
 with col_p1:
     st.markdown("**📸 토크렌치 교정번호**")
     cam1 = st.camera_input("카메라 1", key="cam1", label_visibility="collapsed")
-    up1 = st.file_uploader("업로드 1", type=["png", "jpg", "jpeg"], key="up1", label_visibility="collapsed")
+    up1 = st.file_uploader("업로드 1", type=["png", "jpg"], key="up1", label_visibility="collapsed")
     if cam1: st.session_state['photo1'] = cam1.getvalue()
     elif up1: st.session_state['photo1'] = up1.getvalue()
 
 with col_p2:
     st.markdown("**📸 토크렌치 세팅 값**")
     cam2 = st.camera_input("카메라 2", key="cam2", label_visibility="collapsed")
-    up2 = st.file_uploader("업로드 2", type=["png", "jpg", "jpeg"], key="up2", label_visibility="collapsed")
+    up2 = st.file_uploader("업로드 2", type=["png", "jpg"], key="up2", label_visibility="collapsed")
     if cam2: st.session_state['photo2'] = cam2.getvalue()
     elif up2: st.session_state['photo2'] = up2.getvalue()
 
@@ -175,7 +168,7 @@ if not final_torque_data and (dia_t or elem1 or elem2):
     final_torque_data = [[dia_t, elem1, elem2, t_val, serial]]
 
 # ==========================================
-# 4. 엑셀 서식 생성 함수
+# 5. 엑셀 서식 생성 함수
 # ==========================================
 def generate_report(align_list, torque_list):
     wb = openpyxl.Workbook()
@@ -202,13 +195,11 @@ def generate_report(align_list, torque_list):
         cell.border = border
         if fill: cell.fill = fill
 
-    # 타이틀
     ws.merge_cells("A1:H2")
     title = ws["A1"]
     title.value = "GRE PIPE INSTALLATION & TORQUE INSPECTION REPORT"
     apply_style(title, Font(name="맑은 고딕", size=16, bold=True, color="FFFFFF"), ALIGN_C, THIN_BORDER, NAVY_FILL)
 
-    # 메타 정보
     row_idx = 4
     meta_info = [
         ("작성일자", str(doc_date), "문서번호", doc_no),
@@ -228,9 +219,136 @@ def generate_report(align_list, torque_list):
         row_idx += 1
 
     row_idx += 1
-
-    # 1. 기본 점검 사항
     ws.cell(row=row_idx, column=1, value="1. 기본 점검 사항 (General Inspection)").font = SUB_FONT
     row_idx += 1
     
-    headers_s1 = ["순번", "점검 항목 (Inspection Items)", "", "", "", "", "점검결과", "조치 내용 / 비고"]
+    # 안전하게 줄바꿈
+    headers_s1 = [
+        "순번", "점검 항목 (Inspection Items)", "", "", "", "", "점검결과", "조치 내용 / 비고"
+    ]
+    for col, h in enumerate(headers_s1, 1):
+        apply_style(ws.cell(row=row_idx, column=col, value=h), WHITE_FONT, ALIGN_C, THIN_BORDER, NAVY_FILL)
+    ws.merge_cells(f"B{row_idx}:F{row_idx}")
+    
+    for item in basic_results:
+        row_idx += 1
+        ws.row_dimensions[row_idx].height = 22
+        ws.cell(row=row_idx, column=1, value=item["순번"])
+        ws.cell(row=row_idx, column=2, value=item["항목"])
+        ws.cell(row=row_idx, column=7, value=item["결과"])
+        ws.cell(row=row_idx, column=8, value=item["비고"])
+        for col in range(1, 9): apply_style(ws.cell(row=row_idx, column=col), BODY_FONT, ALIGN_C if col!=2 else ALIGN_L, THIN_BORDER)
+        ws.merge_cells(f"B{row_idx}:F{row_idx}")
+
+    row_idx += 1
+    ws.merge_cells(f"A{row_idx}:H{row_idx}")
+    alert = ws.cell(row=row_idx, column=1, value="※ 단 LEAK 발생시 담당PRO와 협의 후 MAXIMUM TORQUE값 사용가능")
+    apply_style(alert, ALERT_FONT, ALIGN_C, THIN_BORDER)
+        
+    row_idx += 2
+    ws.cell(row=row_idx, column=1, value="2. ALIGNMENT CHECK RESULT").font = SUB_FONT
+    row_idx += 1
+    
+    align_h = ["DIA (관경)", "COUPLING NO", "TOP (상부)", "BOTTOM (하부)", "PORT (좌현)", "STB (우현)", "GAP (간극)", "REMARK (비고)"]
+    for col, h in enumerate(align_h, 1): 
+        apply_style(ws.cell(row=row_idx, column=col, value=h), WHITE_FONT, ALIGN_C, THIN_BORDER, NAVY_FILL)
+    for row_data in align_list:
+        row_idx += 1
+        for col, val in enumerate(row_data, 1): 
+            apply_style(ws.cell(row=row_idx, column=col, value=val), BODY_FONT, ALIGN_C, THIN_BORDER)
+
+    row_idx += 2
+    ws.cell(row=row_idx, column=1, value="3. FLANGE JOINT TORQUE VALUE CHECK RESULT").font = SUB_FONT
+    row_idx += 1
+    
+    torque_h = ["DIA (관경)", "ELEM.NO 1", "ELEM.NO 2", "토크 값 (N·m)", "토크렌치 S/N", "", "", ""]
+    for col, h in enumerate(torque_h, 1):
+        c = ws.cell(row=row_idx, column=col)
+        apply_style(c, WHITE_FONT, ALIGN_C, THIN_BORDER, NAVY_FILL)
+        if h: c.value = h
+    ws.merge_cells(f"E{row_idx}:H{row_idx}")
+    
+    for row_data in torque_list:
+        row_idx += 1
+        for col, val in enumerate(row_data, 1): 
+            apply_style(ws.cell(row=row_idx, column=col, value=val), BODY_FONT, ALIGN_C, THIN_BORDER)
+        for col in range(6, 9):
+            apply_style(ws.cell(row=row_idx, column=col), BODY_FONT, ALIGN_C, THIN_BORDER)
+        ws.merge_cells(f"E{row_idx}:H{row_idx}")
+
+    row_idx += 3
+    ws.cell(row=row_idx, column=1, value="4. 증빙 사진 (Visual Evidence)").font = SUB_FONT
+    row_idx += 1
+    
+    if st.session_state['photo1']:
+        img1 = xlImage(io.BytesIO(st.session_state['photo1']))
+        img1.width, img1.height = 300, 250
+        ws.add_image(img1, f"A{row_idx}")
+        
+    if st.session_state['photo2']:
+        img2 = xlImage(io.BytesIO(st.session_state['photo2']))
+        img2.width, img2.height = 300, 250
+        ws.add_image(img2, f"E{row_idx}")
+
+    widths = [13, 17, 13, 13, 13, 13, 13, 20]
+    for i, w in enumerate(widths, 1): ws.column_dimensions[get_column_letter(i)].width = w
+
+    output = io.BytesIO()
+    wb.save(output)
+    return output.getvalue()
+
+# ==========================================
+# 6. 하단 저장 버튼 (투 트랙 시스템)
+# ==========================================
+col_btn1, col_btn2 = st.columns(2)
+
+with col_btn1:
+    if st.button("🚀 1단계: 구글 시트 데이터 전송", type="primary", use_container_width=True):
+        with st.spinner("구글 시트에 실시간 누적 중..."):
+            try:
+                gcp_creds = json.loads(st.secrets["gcp_service_account"])
+                if "private_key" in gcp_creds:
+                    gcp_creds["private_key"] = gcp_creds["private_key"].replace("\\n", "\n")
+                
+                creds = Credentials.from_service_account_info(
+                    gcp_creds, 
+                    scopes=["https://www.googleapis.com/auth/spreadsheets"]
+                )
+                current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                
+                gc = gspread.authorize(creds)
+                sh = gc.open_by_key(SPREADSHEET_ID)
+                
+                meta_tags = [current_time, hull_no, block_no, tag_no, final_dept_name, doc_area, doc_author]
+
+                sh.worksheet("기본점검로그").append_rows([meta_tags + [item["순번"], item["항목"], item["결과"], item["비고"]] for item in basic_results])
+                if final_align_data:
+                    sh.worksheet("얼라인먼트로그").append_rows([meta_tags + row for row in final_align_data])
+                if final_torque_data:
+                    sh.worksheet("토크로그").append_rows([meta_tags + row for row in final_torque_data])
+                
+                st.success("🎉 구글 시트 데이터 누적 완료!")
+            except Exception as e:
+                st.error(f"시트 전송 실패: {e}")
+
+with col_btn2:
+    try:
+        excel_bytes = generate_report(final_align_data, final_torque_data)
+        file_name = f"{doc_no}.xlsx"
+        st.download_button(
+            label="📥 2단계: 양식 다운로드 (Excel)",
+            data=excel_bytes,
+            file_name=file_name,
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True
+        )
+    except Exception as e:
+        st.warning("보고서 엑셀을 생성하는 중 오류가 발생했습니다.")
+
+st.markdown("---")
+if st.button("🔄 새로운 점검 시작 (입력창 초기화)", use_container_width=True):
+    st.session_state['align_data'] = []
+    st.session_state['torque_data'] = []
+    st.session_state['photo1'] = None
+    st.session_state['photo2'] = None
+    st.rerun()

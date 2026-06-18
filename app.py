@@ -149,55 +149,63 @@ def generate_report():
         cell.border = border
         if fill: cell.fill = fill
 
-    ws.merge_cells("A1:H2")
-    title = ws["A1"]
-    title.value = "GRE PIPE INSTALLATION & TORQUE INSPECTION REPORT"
+    # 타이틀
+    title = ws.cell(row=1, column=1, value="GRE PIPE INSTALLATION & TORQUE INSPECTION REPORT")
     title.font = Font(name="맑은 고딕", size=16, bold=True)
     title.alignment = ALIGN_C
+    ws.merge_cells("A1:H2")
 
     row_idx = 4
     ws.cell(row=row_idx, column=1, value="1. 기본 점검 사항").font = Font(name="맑은 고딕", size=12, bold=True)
     row_idx += 1
     
     headers_s1 = ["순번", "점검 항목 (Inspection Items)", "", "", "", "", "점검결과", "조치내용"]
-    ws.merge_cells(f"B{row_idx}:F{row_idx}")
     for col, h in enumerate(headers_s1, 1):
         c = ws.cell(row=row_idx, column=col, value=h)
         apply_style(c, WHITE_FONT, ALIGN_C, THIN_BORDER, NAVY_FILL)
+    ws.merge_cells(f"B{row_idx}:F{row_idx}") # 서식 적용 후 병합
     
     for item in basic_results:
         row_idx += 1
         ws.row_dimensions[row_idx].height = 25
         ws.cell(row=row_idx, column=1, value=item["순번"])
-        ws.merge_cells(f"B{row_idx}:F{row_idx}")
         ws.cell(row=row_idx, column=2, value=item["항목"])
         ws.cell(row=row_idx, column=7, value=item["결과"])
         ws.cell(row=row_idx, column=8, value=item["비고"])
-        for col in range(1, 9): apply_style(ws.cell(row=row_idx, column=col), BODY_FONT, ALIGN_C if col!=2 else ALIGN_L, THIN_BORDER)
+        for col in range(1, 9): 
+            apply_style(ws.cell(row=row_idx, column=col), BODY_FONT, ALIGN_C if col!=2 else ALIGN_L, THIN_BORDER)
+        ws.merge_cells(f"B{row_idx}:F{row_idx}") # 서식 적용 후 병합
         
     row_idx += 2
     ws.cell(row=row_idx, column=1, value="2. ALIGNMENT CHECK RESULT").font = Font(name="맑은 고딕", size=12, bold=True)
     row_idx += 1
     
     align_h = ["DIA", "COUPLING NO", "TOP", "BOTTOM", "PORT", "STB", "GAP", "REMARK"]
-    for col, h in enumerate(align_h, 1): apply_style(ws.cell(row=row_idx, column=col, value=h), WHITE_FONT, ALIGN_C, THIN_BORDER, NAVY_FILL)
+    for col, h in enumerate(align_h, 1): 
+        apply_style(ws.cell(row=row_idx, column=col, value=h), WHITE_FONT, ALIGN_C, THIN_BORDER, NAVY_FILL)
     for row_data in st.session_state['align_data']:
         row_idx += 1
-        for col, val in enumerate(row_data, 1): apply_style(ws.cell(row=row_idx, column=col, value=val), BODY_FONT, ALIGN_C, THIN_BORDER)
+        for col, val in enumerate(row_data, 1): 
+            apply_style(ws.cell(row=row_idx, column=col, value=val), BODY_FONT, ALIGN_C, THIN_BORDER)
 
     row_idx += 2
     ws.cell(row=row_idx, column=1, value="3. TORQUE VALUE CHECK RESULT").font = Font(name="맑은 고딕", size=12, bold=True)
     row_idx += 1
     
     torque_h = ["DIA", "ELEM.NO 1", "ELEM.NO 2", "토크 값 (N·m)", "토크렌치 S/N", "", "", ""]
-    ws.merge_cells(f"E{row_idx}:H{row_idx}")
     for col, h in enumerate(torque_h, 1):
-        apply_style(ws.cell(row=row_idx, column=col), WHITE_FONT, ALIGN_C, THIN_BORDER, NAVY_FILL)
-        if h: ws.cell(row=row_idx, column=col, value=h)
+        c = ws.cell(row=row_idx, column=col)
+        apply_style(c, WHITE_FONT, ALIGN_C, THIN_BORDER, NAVY_FILL)
+        if h: c.value = h
+    ws.merge_cells(f"E{row_idx}:H{row_idx}")
+    
     for row_data in st.session_state['torque_data']:
         row_idx += 1
-        ws.merge_cells(f"E{row_idx}:H{row_idx}")
-        for col, val in enumerate(row_data, 1): apply_style(ws.cell(row=row_idx, column=col), BODY_FONT, ALIGN_C, THIN_BORDER)
+        for col, val in enumerate(row_data, 1): 
+            apply_style(ws.cell(row=row_idx, column=col, value=val), BODY_FONT, ALIGN_C, THIN_BORDER)
+        for col in range(6, 9):
+            apply_style(ws.cell(row=row_idx, column=col), BODY_FONT, ALIGN_C, THIN_BORDER)
+        ws.merge_cells(f"E{row_idx}:H{row_idx}") # 서식 적용 후 병합
 
     row_idx += 3
     ws.cell(row=row_idx, column=1, value="4. 증빙 사진 (Visual Evidence)").font = Font(name="맑은 고딕", size=12, bold=True)
@@ -219,7 +227,7 @@ def generate_report():
     output = io.BytesIO()
     wb.save(output)
     return output.getvalue()
-
+    
 # ==========================================
 # 5. 하단 제어부 및 클라우드 동기화 로직
 # ==========================================

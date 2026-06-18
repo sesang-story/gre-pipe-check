@@ -10,6 +10,10 @@ from datetime import datetime
 import gspread
 from google.oauth2.service_account import Credentials
 
+# 메일 전송용 라이브러리 추가
+import smtplib
+from email.message import EmailMessage
+
 # ==========================================
 # ⚙️ 정식 앱 이름 및 파이프 아이콘 고정 설정 (최상단 필수)
 # ==========================================
@@ -25,7 +29,6 @@ st.set_page_config(
 # ==========================================
 SPREADSHEET_ID = "goTmdvN69Axic01bYIarMa3ej8V-pwEivZ9RLrIMTB4"
 
-# 세션 상태 초기화
 if 'align_data' not in st.session_state: st.session_state['align_data'] = []
 if 'torque_data' not in st.session_state: st.session_state['torque_data'] = []
 if 'photo1' not in st.session_state: st.session_state['photo1'] = None
@@ -67,7 +70,7 @@ final_dept_name = "" if dept_name == "선택 안함" else dept_name
 st.markdown("---")
 
 # ==========================================
-# 2. 기본 점검 사항 (데이터 취합)
+# 2. 기본 점검 사항 
 # ==========================================
 st.header("1. 기본 점검 사항")
 questions = [
@@ -93,7 +96,6 @@ for i, q in enumerate(questions, 1):
         remark = st.text_input("조치내용", placeholder="조치내용 입력...", key=f"remark_{i}", label_visibility="collapsed")
     basic_results.append({"순번": i, "항목": q, "결과": status, "비고": remark if remark else "-"})
 
-# 전체 판정 로직: 10개 중 하나라도 '양호'가 아니면 '불량'
 overall_status = "양호"
 for item in basic_results:
     if item["결과"] != "양호":
@@ -147,7 +149,7 @@ with tab2:
 st.markdown("---")
 
 # ==========================================
-# 4. 토크렌치 사진 (카카오톡 대응 업로드 전용 및 실시간 미리보기)
+# 4. 현장 증빙 사진 
 # ==========================================
 st.header("3. 토크렌치")
 col_p1, col_p2 = st.columns(2)
@@ -172,9 +174,6 @@ with col_p2:
 
 st.markdown("---")
 
-# ==========================================
-# 5. 현장 사진 (업로드 전용 및 실시간 미리보기)
-# ==========================================
 st.header("4. 현장 사진")
 col_p3, col_p4 = st.columns(2)
 
@@ -198,7 +197,6 @@ with col_p4:
 
 st.markdown("---")
 
-# 자동 보정 데이터 구성
 final_align_data = st.session_state['align_data'].copy()
 if not final_align_data and (dia_a or coup_no): 
     final_align_data = [[dia_a, coup_no, top, bottom, port, stb, gap, rem_a]]
@@ -208,7 +206,7 @@ if not final_torque_data and (dia_t or elem1 or elem2):
     final_torque_data = [[dia_t, elem1, elem2, t_val, serial]]
 
 # ==========================================
-# 6. 엑셀 서식 생성 함수
+# 5. 엑셀 서식 생성 함수
 # ==========================================
 def generate_report(align_list, torque_list):
     wb = openpyxl.Workbook()
@@ -313,14 +311,10 @@ def generate_report(align_list, torque_list):
             apply_style(ws.cell(row=row_idx, column=col), BODY_FONT, ALIGN_C, THIN_BORDER)
         ws.merge_cells(f"E{row_idx}:H{row_idx}")
 
-    # ==========================================
-    # 💡 4. 현장 사진 (2x2 그리드 셀 병합 배치)
-    # ==========================================
     row_idx += 3
     ws.cell(row=row_idx, column=1, value="4. 현장 사진").font = SUB_FONT
     row_idx += 1
     
-    # 1단 사진 제목행
     ws.cell(row=row_idx, column=1, value="[토크렌치 교정번호]"); apply_style(ws.cell(row=row_idx, column=1), BODY_BOLD, ALIGN_C, THIN_BORDER, SUB_FILL)
     ws.cell(row=row_idx, column=5, value="[토크렌치 세팅 값]"); apply_style(ws.cell(row=row_idx, column=5), BODY_BOLD, ALIGN_C, THIN_BORDER, SUB_FILL)
     ws.merge_cells(f"A{row_idx}:D{row_idx}")
@@ -328,7 +322,6 @@ def generate_report(align_list, torque_list):
     for c in range(2, 5): ws.cell(row=row_idx, column=c).border = THIN_BORDER
     for c in range(6, 9): ws.cell(row=row_idx, column=c).border = THIN_BORDER
     
-    # 1단 사진 데이터행 (높이 190 고정)
     row_idx += 1
     ws.row_dimensions[row_idx].height = 190
     for c in range(1, 9): ws.cell(row=row_idx, column=c).border = THIN_BORDER
@@ -345,7 +338,6 @@ def generate_report(align_list, torque_list):
         img2.width, img2.height = 310, 240
         ws.add_image(img2, f"E{row_idx}")
 
-    # 2단 사진 제목행
     row_idx += 1
     ws.cell(row=row_idx, column=1, value="[현장 사진 1]"); apply_style(ws.cell(row=row_idx, column=1), BODY_BOLD, ALIGN_C, THIN_BORDER, SUB_FILL)
     ws.cell(row=row_idx, column=5, value="[현장 사진 2]"); apply_style(ws.cell(row=row_idx, column=5), BODY_BOLD, ALIGN_C, THIN_BORDER, SUB_FILL)
@@ -354,7 +346,6 @@ def generate_report(align_list, torque_list):
     for c in range(2, 5): ws.cell(row=row_idx, column=c).border = THIN_BORDER
     for c in range(6, 9): ws.cell(row=row_idx, column=c).border = THIN_BORDER
     
-    # 2단 사진 데이터행 (높이 190 고정)
     row_idx += 1
     ws.row_dimensions[row_idx].height = 190
     for c in range(1, 9): ws.cell(row=row_idx, column=c).border = THIN_BORDER
@@ -379,9 +370,9 @@ def generate_report(align_list, torque_list):
     return output.getvalue()
 
 # ==========================================
-# 7. 제어 버튼 레이아웃 명칭 변경 적용
+# 7. 버튼 3개 분할 (시트전송, 다운로드, 메일전송)
 # ==========================================
-col_btn1, col_btn2 = st.columns(2)
+col_btn1, col_btn2, col_btn3 = st.columns(3)
 
 with col_btn1:
     if st.button("🚀 데이터 전송", type="primary", use_container_width=True):
@@ -400,13 +391,11 @@ with col_btn1:
                 
                 formatted_date = doc_date.strftime('%y-%m-%d')
                 
-                # 사진이 4개 중 단 하나라도 첨부되었는지 자동 판단
                 if st.session_state['photo1'] or st.session_state['photo2'] or st.session_state['photo3'] or st.session_state['photo4']:
                     photo_status = "유"
                 else:
                     photo_status = "무"
                     
-                # 신규 지정 서식 8개 열 구조 적립
                 summary_row = [formatted_date, hull_no, block_no, tag_no, final_dept_name, doc_author, overall_status, photo_status]
                 
                 sh.worksheet("기본점검로그").append_row(summary_row)
@@ -433,6 +422,47 @@ with col_btn2:
         )
     except Exception as e:
         st.warning("보고서 엑셀을 생성하는 중 오류가 발생했습니다.")
+
+with col_btn3:
+    if st.button("📧 메일 전송", use_container_width=True):
+        with st.spinner("사내 메일로 엑셀 보고서를 전송 중..."):
+            try:
+                # 1. 엑셀 파일 굽기
+                excel_bytes = generate_report(final_align_data, final_torque_data)
+                file_name = f"{doc_no}.xlsx"
+                
+                # 2. 지정된 사내 메일 주소
+                target_email = "h9222.hong@samsung.com"
+                
+                # 3. Secrets에서 발신용 구글 계정 정보 가져오기
+                sender_email = st.secrets["email"]["sender_email"]
+                app_pw = st.secrets["email"]["app_password"]
+                
+                # 4. 이메일 세팅 및 첨부
+                msg = EmailMessage()
+                msg['Subject'] = f'[품질검사보고서] {doc_no}'
+                msg['From'] = sender_email
+                msg['To'] = target_email
+                msg.set_content(f"현장에서 작성된 GRE PIPE 품질검사보고서 ({file_name}) 첨부드립니다.\n\n- 발신: 모바일 체크시트 시스템 자동화 발송")
+                
+                msg.add_attachment(
+                    excel_bytes, 
+                    maintype='application', 
+                    subtype='vnd.openxmlformats-officedocument.spreadsheetml.sheet', 
+                    filename=file_name
+                )
+                
+                # 5. 구글 SMTP 서버를 통해 발송
+                with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+                    smtp.login(sender_email, app_pw)
+                    smtp.send_message(msg)
+                    
+                st.success(f"🎉 {target_email}로 전송 완료!")
+                
+            except KeyError:
+                st.error("메일 발송 실패: Streamlit Secrets에 [email] 설정을 추가해 주세요!")
+            except Exception as e:
+                st.error(f"메일 발송 중 오류가 발생했습니다: {e}")
 
 st.markdown("---")
 if st.button("🔄 새로운 점검 시작 (입력창 초기화)", use_container_width=True):

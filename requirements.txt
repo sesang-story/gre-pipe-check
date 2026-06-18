@@ -2,3 +2,6 @@ streamlit
 pandas
 openpyxl
 Pillow
+gspread
+google-auth
+google-api-python-client

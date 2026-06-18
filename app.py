@@ -229,9 +229,9 @@ with col_btn2:
     if st.button("🚀 점검결과 제출 및 클라우드 동기화", type="primary", use_container_width=True):
         with st.spinner("구글 클라우드(시트/드라이브)에 전송 중입니다..."):
             try:
-                # 구글 인증서 로드
-                creds = Credentials.from_service_account_file(
-                    'google_creds.json', 
+                # 구글 인증서 로드 (Streamlit Secrets 사용)
+                creds = Credentials.from_service_account_info(
+                    st.secrets["gcp_service_account"], 
                     scopes=["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
                 )
                 current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')

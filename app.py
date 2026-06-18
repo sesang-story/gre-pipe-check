@@ -30,20 +30,36 @@ st.title("🛠️ GRE PIPE 모바일 체크시트")
 st.markdown("---")
 
 # ==========================================
-# 📝 보고서 기본 정보 입력 (확장판)
+# 📝 보고서 현장 정보 (자동 조합 로직 추가)
 # ==========================================
 with st.expander("📄 보고서 현장 정보 (보고서 및 클라우드 동기화)", expanded=True):
     col_m1, col_m2 = st.columns(2)
     with col_m1:
         doc_date = st.date_input("작성일자", datetime.now())
-        hull_no = st.text_input("호선 (Hull No.)", placeholder="예: SN2688")
-        tag_no = st.text_input("TAG NO.", placeholder="예: TAG-001")
-        doc_author = st.text_input("이름 (작성자)", value="홍의현 프로")
+        hull_no = st.text_input("호선 (Hull No.)", placeholder="예: SN2717")
+        block_no = st.text_input("블록 (Block)", placeholder="예: D620S")
+        tag_no = st.text_input("TAG NO.", placeholder="예: CG001")
+        
     with col_m2:
-        doc_no = st.text_input("문서번호", value=f"SHI-GRE-{datetime.now().strftime('%Y%m')}-001")
-        block_no = st.text_input("블록 (Block)", placeholder="예: E21")
-        dept_name = st.text_input("소속", value="선행의장 1과")
-        doc_area = st.text_input("검사구역", value="선행의장 1과 현장")
+        dept_name = st.selectbox("소속", ["선택 안함", "1직1반", "1직2반", "2직1반", "3직1반", "3직2반", "4직2반", "4직3반", "대영기업"])
+        doc_area = st.text_input("AREA", placeholder="예: E21 현장")
+        doc_author = st.text_input("이름 (작성자)", value="")
+
+    # 💡 문서번호 자동 생성 로직
+    auto_doc_no = "SHI-GRE"
+    if hull_no: auto_doc_no += f"-{hull_no.strip()}"
+    if block_no: auto_doc_no += f"-{block_no.strip()}"
+    if tag_no: auto_doc_no += f"-{tag_no.strip()}"
+    
+    # 아무것도 입력 안 했을 때의 기본값 보호
+    if auto_doc_no == "SHI-GRE":
+        auto_doc_no = f"SHI-GRE-{datetime.now().strftime('%Y%m')}-001"
+        
+    doc_no = auto_doc_no
+    st.text_input("문서번호 (자동생성)", value=doc_no, disabled=True)
+
+# 소속 선택 안 했을 경우 빈칸 처리
+final_dept_name = "" if dept_name == "선택 안함" else dept_name
 
 st.markdown("---")
 
@@ -81,256 +97,5 @@ st.markdown("---")
 # 2. 데이터 입력
 # ==========================================
 st.header("2. 데이터 입력")
+st.info("💡 값을 입력한 후 [➕ 추가] 버튼을 안 눌러도, 입력된 값은 보고서에 자동으로 1줄 반영됩니다!")
 tab1, tab2 = st.tabs(["ALIGNMENT CHECK", "TORQUE CHECK"])
-
-with tab1:
-    col1, col2 = st.columns(2)
-    with col1:
-        dia_a = st.text_input("DIA (관경)", key="dia_a")
-        top = st.text_input("TOP (상부)", key="top")
-        port = st.text_input("PORT (좌현)", key="port")
-        gap = st.text_input("GAP (간극)", key="gap")
-    with col2:
-        coup_no = st.text_input("COUPLING NUMBER", key="coup_no")
-        bottom = st.text_input("BOTTOM (하부)", key="bottom")
-        stb = st.text_input("STB (우현)", key="stb")
-        rem_a = st.text_input("REMARK (비고)", key="rem_a", value="정상 범위 내")
-    if st.button("➕ ALIGNMENT 추가", use_container_width=True):
-        st.session_state['align_data'].append([dia_a, coup_no, top, bottom, port, stb, gap, rem_a])
-        st.success("리스트에 추가되었습니다.")
-    if st.session_state['align_data']:
-        st.dataframe(pd.DataFrame(st.session_state['align_data'], columns=["DIA", "COUP_NO", "TOP", "BOTTOM", "PORT", "STB", "GAP", "REMARK"]), use_container_width=True)
-
-with tab2:
-    col1, col2 = st.columns(2)
-    with col1:
-        dia_t = st.text_input("DIA (관경)", key="dia_t")
-        elem2 = st.text_input("ELEM.NO (2)", key="elem2")
-        serial = st.text_input("토크렌치 S/N", key="serial", value="P2024500178")
-    with col2:
-        elem1 = st.text_input("ELEM.NO (1)", key="elem1")
-        t_val = st.text_input("TORQUE VALUE", key="t_val")
-    if st.button("➕ TORQUE 추가", use_container_width=True):
-        st.session_state['torque_data'].append([dia_t, elem1, elem2, t_val, serial])
-        st.success("리스트에 추가되었습니다.")
-    if st.session_state['torque_data']:
-        st.dataframe(pd.DataFrame(st.session_state['torque_data'], columns=["DIA", "ELEM.NO 1", "ELEM.NO 2", "토크 값", "토크렌치 S/N"]), use_container_width=True)
-
-st.markdown("---")
-
-# ==========================================
-# 3. 현장 증빙 사진 
-# ==========================================
-st.header("3. 현장 증빙 사진")
-col1, col2 = st.columns(2)
-
-with col1:
-    st.markdown("**📸 토크렌치 교정번호**")
-    cam1 = st.camera_input("카메라 1", key="cam1", label_visibility="collapsed")
-    up1 = st.file_uploader("업로드 1", type=["png", "jpg", "jpeg"], key="up1", label_visibility="collapsed")
-    if cam1: st.session_state['photo1'] = cam1.getvalue()
-    elif up1: st.session_state['photo1'] = up1.getvalue()
-
-with col2:
-    st.markdown("**📸 토크렌치 세팅 값**")
-    cam2 = st.camera_input("카메라 2", key="cam2", label_visibility="collapsed")
-    up2 = st.file_uploader("업로드 2", type=["png", "jpg", "jpeg"], key="up2", label_visibility="collapsed")
-    if cam2: st.session_state['photo2'] = cam2.getvalue()
-    elif up2: st.session_state['photo2'] = up2.getvalue()
-
-st.markdown("---")
-
-# ==========================================
-# 4. 정보가 확장된 엑셀 서식 생성 함수
-# ==========================================
-def generate_report():
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.title = "품질검사보고서"
-    ws.views.sheetView[0].showGridLines = False
-
-    NAVY_FILL = PatternFill(start_color="1F4E78", end_color="1F4E78", fill_type="solid")
-    SUB_FILL = PatternFill(start_color="D9E1F2", end_color="D9E1F2", fill_type="solid")
-    WHITE_FONT = Font(name="맑은 고딕", size=11, bold=True, color="FFFFFF")
-    SUB_FONT = Font(name="맑은 고딕", size=11, bold=True, color="1F4E78")
-    BODY_FONT = Font(name="맑은 고딕", size=10)
-    BODY_BOLD = Font(name="맑은 고딕", size=10, bold=True)
-    ALERT_FONT = Font(name="맑은 고딕", size=10, bold=True, color="FF0000")
-    
-    ALIGN_C = Alignment(horizontal="center", vertical="center", wrap_text=True)
-    ALIGN_L = Alignment(horizontal="left", vertical="center", wrap_text=True)
-    THIN_BORDER = Border(left=Side(style='thin', color='BFBFBF'), right=Side(style='thin', color='BFBFBF'),
-                         top=Side(style='thin', color='BFBFBF'), bottom=Side(style='thin', color='BFBFBF'))
-
-    def apply_style(cell, font, align, border, fill=None):
-        cell.font = font
-        cell.alignment = align
-        cell.border = border
-        if fill: cell.fill = fill
-
-    # 타이틀
-    ws.merge_cells("A1:H2")
-    title = ws["A1"]
-    title.value = "GRE PIPE INSTALLATION & TORQUE INSPECTION REPORT"
-    apply_style(title, Font(name="맑은 고딕", size=16, bold=True, color="FFFFFF"), ALIGN_C, THIN_BORDER, NAVY_FILL)
-
-    # 💡 4줄로 확장된 메타 정보 블록 (호선, 블록, TAG 등)
-    row_idx = 4
-    meta_info = [
-        ("작성일자", str(doc_date), "문서번호", doc_no),
-        ("호선 (Hull No.)", hull_no, "블록 (Block)", block_no),
-        ("TAG NO.", tag_no, "소속", dept_name),
-        ("이름", doc_author, "검사구역", doc_area)
-    ]
-    
-    for lbl1, val1, lbl2, val2 in meta_info:
-        ws.row_dimensions[row_idx].height = 22
-        ws.cell(row=row_idx, column=1, value=lbl1); apply_style(ws.cell(row=row_idx, column=1), BODY_BOLD, ALIGN_C, THIN_BORDER, SUB_FILL)
-        ws.cell(row=row_idx, column=5, value=lbl2); apply_style(ws.cell(row=row_idx, column=5), BODY_BOLD, ALIGN_C, THIN_BORDER, SUB_FILL)
-        ws.merge_cells(f"B{row_idx}:D{row_idx}"); ws.cell(row=row_idx, column=2, value=val1)
-        ws.merge_cells(f"F{row_idx}:H{row_idx}"); ws.cell(row=row_idx, column=6, value=val2)
-        for c in range(2, 5): apply_style(ws.cell(row=row_idx, column=c), BODY_FONT, ALIGN_L, THIN_BORDER)
-        for c in range(6, 9): apply_style(ws.cell(row=row_idx, column=c), BODY_FONT, ALIGN_L, THIN_BORDER)
-        row_idx += 1
-
-    row_idx += 1
-
-    # 1. 기본 점검 사항
-    ws.cell(row=row_idx, column=1, value="1. 기본 점검 사항 (General Inspection)").font = SUB_FONT
-    row_idx += 1
-    
-    headers_s1 = ["순번", "점검 항목 (Inspection Items)", "", "", "", "", "점검결과", "조치 내용 / 비고"]
-    for col, h in enumerate(headers_s1, 1):
-        apply_style(ws.cell(row=row_idx, column=col, value=h), WHITE_FONT, ALIGN_C, THIN_BORDER, NAVY_FILL)
-    ws.merge_cells(f"B{row_idx}:F{row_idx}")
-    
-    for item in basic_results:
-        row_idx += 1
-        ws.row_dimensions[row_idx].height = 22
-        ws.cell(row=row_idx, column=1, value=item["순번"])
-        ws.cell(row=row_idx, column=2, value=item["항목"])
-        ws.cell(row=row_idx, column=7, value=item["결과"])
-        ws.cell(row=row_idx, column=8, value=item["비고"])
-        for col in range(1, 9): apply_style(ws.cell(row=row_idx, column=col), BODY_FONT, ALIGN_C if col!=2 else ALIGN_L, THIN_BORDER)
-        ws.merge_cells(f"B{row_idx}:F{row_idx}")
-
-    row_idx += 1
-    ws.merge_cells(f"A{row_idx}:H{row_idx}")
-    alert = ws.cell(row=row_idx, column=1, value="※ 단 LEAK 발생시 담당PRO와 협의 후 MAXIMUM TORQUE값 사용가능")
-    apply_style(alert, ALERT_FONT, ALIGN_C, THIN_BORDER)
-        
-    row_idx += 2
-
-    # 2. 얼라인먼트
-    ws.cell(row=row_idx, column=1, value="2. ALIGNMENT CHECK RESULT").font = SUB_FONT
-    row_idx += 1
-    
-    align_h = ["DIA (관경)", "COUPLING NO", "TOP (상부)", "BOTTOM (하부)", "PORT (좌현)", "STB (우현)", "GAP (간극)", "REMARK (비고)"]
-    for col, h in enumerate(align_h, 1): 
-        apply_style(ws.cell(row=row_idx, column=col, value=h), WHITE_FONT, ALIGN_C, THIN_BORDER, NAVY_FILL)
-    for row_data in st.session_state['align_data']:
-        row_idx += 1
-        for col, val in enumerate(row_data, 1): 
-            apply_style(ws.cell(row=row_idx, column=col, value=val), BODY_FONT, ALIGN_C, THIN_BORDER)
-
-    row_idx += 2
-
-    # 3. 토크
-    ws.cell(row=row_idx, column=1, value="3. FLANGE JOINT TORQUE VALUE CHECK RESULT").font = SUB_FONT
-    row_idx += 1
-    
-    torque_h = ["DIA (관경)", "ELEM.NO 1", "ELEM.NO 2", "토크 값 (N·m)", "토크렌치 S/N", "", "", ""]
-    for col, h in enumerate(torque_h, 1):
-        c = ws.cell(row=row_idx, column=col)
-        apply_style(c, WHITE_FONT, ALIGN_C, THIN_BORDER, NAVY_FILL)
-        if h: c.value = h
-    ws.merge_cells(f"E{row_idx}:H{row_idx}")
-    
-    for row_data in st.session_state['torque_data']:
-        row_idx += 1
-        for col, val in enumerate(row_data, 1): 
-            apply_style(ws.cell(row=row_idx, column=col, value=val), BODY_FONT, ALIGN_C, THIN_BORDER)
-        for col in range(6, 9):
-            apply_style(ws.cell(row=row_idx, column=col), BODY_FONT, ALIGN_C, THIN_BORDER)
-        ws.merge_cells(f"E{row_idx}:H{row_idx}")
-
-    row_idx += 3
-
-    # 4. 사진
-    ws.cell(row=row_idx, column=1, value="4. 증빙 사진 (Visual Evidence)").font = SUB_FONT
-    row_idx += 1
-    
-    if st.session_state['photo1']:
-        img1 = xlImage(io.BytesIO(st.session_state['photo1']))
-        img1.width, img1.height = 300, 250
-        ws.add_image(img1, f"A{row_idx}")
-        
-    if st.session_state['photo2']:
-        img2 = xlImage(io.BytesIO(st.session_state['photo2']))
-        img2.width, img2.height = 300, 250
-        ws.add_image(img2, f"E{row_idx}")
-
-    widths = [13, 17, 13, 13, 13, 13, 13, 20]
-    for i, w in enumerate(widths, 1): ws.column_dimensions[get_column_letter(i)].width = w
-
-    output = io.BytesIO()
-    wb.save(output)
-    return output.getvalue()
-
-# ==========================================
-# 5. 투 트랙(Two-track) 제어부 및 구글 시트 전송 강화
-# ==========================================
-col_btn1, col_btn2 = st.columns(2)
-
-with col_btn1:
-    if st.button("🚀 1단계: 구글 시트 데이터 누적", type="primary", use_container_width=True):
-        with st.spinner("구글 시트에 실시간 누적 중..."):
-            try:
-                gcp_creds = json.loads(st.secrets["gcp_service_account"])
-                if "private_key" in gcp_creds:
-                    gcp_creds["private_key"] = gcp_creds["private_key"].replace("\\n", "\n")
-                
-                creds = Credentials.from_service_account_info(
-                    gcp_creds, 
-                    scopes=["https://www.googleapis.com/auth/spreadsheets"]
-                )
-                current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                
-                gc = gspread.authorize(creds)
-                sh = gc.open_by_key(SPREADSHEET_ID)
-                
-                # 💡 구글 시트에 누적될 때 호선, 블록, TAG 등 5가지 정보를 꼬리표처럼 달아서 전송
-                meta_tags = [current_time, hull_no, block_no, tag_no, doc_author]
-
-                sh.worksheet("기본점검로그").append_rows([meta_tags + [item["순번"], item["항목"], item["결과"], item["비고"]] for item in basic_results])
-                if st.session_state['align_data']:
-                    sh.worksheet("얼라인먼트로그").append_rows([meta_tags + row for row in st.session_state['align_data']])
-                if st.session_state['torque_data']:
-                    sh.worksheet("토크로그").append_rows([meta_tags + row for row in st.session_state['torque_data']])
-                
-                st.success("🎉 구글 시트 데이터 누적 완료!")
-            except Exception as e:
-                st.error(f"시트 전송 실패: {e}")
-
-with col_btn2:
-    try:
-        excel_bytes = generate_report()
-        # 파일 이름에도 호선과 태그 번호가 자동으로 들어가게 설정
-        file_name = f"SHI-GRE_{hull_no}_{tag_no}_{datetime.now().strftime('%Y%m%d')}.xlsx"
-        st.download_button(
-            label="📥 2단계: 양식 다운로드 (Excel)",
-            data=excel_bytes,
-            file_name=file_name,
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            use_container_width=True
-        )
-    except Exception as e:
-        st.warning("보고서 엑셀을 생성하는 중 오류가 발생했습니다.")
-
-st.markdown("---")
-if st.button("🔄 새로운 점검 시작 (입력창 초기화)", use_container_width=True):
-    st.session_state['align_data'] = []
-    st.session_state['torque_data'] = []
-    st.session_state['photo1'] = None
-    st.session_state['photo2'] = None
-    st.rerun()

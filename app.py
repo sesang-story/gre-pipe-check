@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import io
+import json
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.drawing.image import Image as xlImage
@@ -230,8 +231,9 @@ with col_btn2:
         with st.spinner("구글 클라우드(시트/드라이브)에 전송 중입니다..."):
             try:
                 # 구글 인증서 로드 (Streamlit Secrets 사용)
+                gcp_creds = json.loads(st.secrets["gcp_service_account"])
                 creds = Credentials.from_service_account_info(
-                    st.secrets["gcp_service_account"], 
+                    gcp_creds, 
                     scopes=["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
                 )
                 current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')

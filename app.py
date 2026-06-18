@@ -230,10 +230,12 @@ with col_btn2:
     if st.button("🚀 점검결과 제출 및 클라우드 동기화", type="primary", use_container_width=True):
         with st.spinner("구글 클라우드(시트/드라이브)에 전송 중입니다..."):
             try:
-                # 구글 인증서 로드 (Streamlit Secrets 사용)
-                gcp_creds = json.loads(st.secrets["gcp_service_account"])
+                # ─── 구글 인증서 로드 (GitHub에 업로드한 JSON 파일 읽기) ───
+                import json
+                with open('google_creds.json', 'r') as f:
+                    gcp_creds = json.load(f)
                 
-                # 💡 중요: TOML로 인해 텍스트로 깨진 줄바꿈(\n) 문자 복원
+                # 💡 중요: 깃허브 업로드/붙여넣기 시 텍스트로 깨진 줄바꿈(\n) 문자 완벽 복원
                 if "private_key" in gcp_creds:
                     gcp_creds["private_key"] = gcp_creds["private_key"].replace("\\n", "\n")
                 

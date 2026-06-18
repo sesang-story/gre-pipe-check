@@ -16,8 +16,8 @@ from googleapiclient.http import MediaIoBaseUpload
 # ==========================================
 # ⚙️ 구글 클라우드 고유 ID 설정 (프로님의 ID로 변경해 주세요)
 # ==========================================
-SPREADSHEET_ID = "여기에_구글_스프레드시트_주소의_ID를_입력하세요"
-DRIVE_FOLDER_ID = "여기에_구글_드라이브_폴더_주소의_ID를_입력하세요"
+SPREADSHEET_ID = "https://docs.google.com/spreadsheets/d/1GNKbHoS7950PqjZNB0xqJIRBuEQnqSGbpCqpOiAGI-U/edit?gid=1848578634#gid=1848578634"
+DRIVE_FOLDER_ID = "https://drive.google.com/drive/u/0/folders/1tjT9Tw8xCty-gjZkCT8_rleyQHYodoS1"
 
 # 모바일 뷰 최적화
 st.set_page_config(page_title="GRE PIPE 모바일 체크시트", layout="wide", initial_sidebar_state="collapsed")

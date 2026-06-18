@@ -17,7 +17,7 @@ from googleapiclient.http import MediaIoBaseUpload
 # ==========================================
 # ⚙️ 구글 클라우드 고유 ID 설정 (프로님의 ID로 변경 필수)
 # ==========================================
-SPREADSHEET_ID = "1GNKbHoS7950PqjZNB0xqJIRBuEQnqSGbpCqpOiAGI-U/edit?gid=0#gid=0"
+SPREADSHEET_ID = "1GNKbHoS7950PqjZNB0xqJIRBuEQnqSGbpCqpOiAGI-U"
 DRIVE_FOLDER_ID = "1tjT9Tw8xCty-gjZkCT8_rleyQHYodoS1"
 
 # 모바일 뷰 최적화 설정

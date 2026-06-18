@@ -233,4 +233,4 @@ def generate_report(align_list, torque_list):
     ws.cell(row=row_idx, column=1, value="1. 기본 점검 사항 (General Inspection)").font = SUB_FONT
     row_idx += 1
     
-    headers_s1 = ["순번", "점검 항목 (Inspection Items)", "", "", "", "", "점검결과", "
+    headers_s1 = ["순번", "점검 항목 (Inspection Items)", "", "", "", "", "점검결과", "조치 내용 / 비고"]

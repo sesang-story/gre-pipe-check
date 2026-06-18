@@ -13,7 +13,7 @@ from google.oauth2.service_account import Credentials
 # ==========================================
 # ⚙️ 구글 클라우드 고유 ID 설정
 # ==========================================
-SPREADSHEET_ID = "1GNKbHoS7950PqjZNB0xqJIRBuEQnqSGbpCqpOiAGI-U"
+SPREADSHEET_ID = "goTmdvN69Axic01bYIarMa3ej8V-pwEivZ9RLrIMTB4"
 
 st.set_page_config(page_title="GRE PIPE 모바일 체크시트", layout="wide", initial_sidebar_state="collapsed")
 
@@ -58,7 +58,7 @@ final_dept_name = "" if dept_name == "선택 안함" else dept_name
 st.markdown("---")
 
 # ==========================================
-# 2. 기본 점검 사항 (데이터 취합)
+# 2. 기본 점검 사항 
 # ==========================================
 st.header("1. 기본 점검 사항")
 questions = [
@@ -137,46 +137,54 @@ with tab2:
 st.markdown("---")
 
 # ==========================================
-# 4. 토크렌치 사진
+# 4. 토크렌치 사진 (업로드 전용 & 미리보기)
 # ==========================================
 st.header("3. 토크렌치")
 col_p1, col_p2 = st.columns(2)
 
 with col_p1:
     st.markdown("**📸 토크렌치 교정번호**")
-    cam1 = st.camera_input("카메라 1", key="cam1", label_visibility="collapsed")
     up1 = st.file_uploader("업로드 1", type=["png", "jpg", "jpeg"], key="up1", label_visibility="collapsed")
-    if cam1: st.session_state['photo1'] = cam1.getvalue()
-    elif up1: st.session_state['photo1'] = up1.getvalue()
+    if up1:
+        st.session_state['photo1'] = up1.getvalue()
+        st.image(st.session_state['photo1'], use_container_width=True) # 사진 미리보기
+    else:
+        st.session_state['photo1'] = None
 
 with col_p2:
     st.markdown("**📸 토크렌치 세팅 값**")
-    cam2 = st.camera_input("카메라 2", key="cam2", label_visibility="collapsed")
     up2 = st.file_uploader("업로드 2", type=["png", "jpg", "jpeg"], key="up2", label_visibility="collapsed")
-    if cam2: st.session_state['photo2'] = cam2.getvalue()
-    elif up2: st.session_state['photo2'] = up2.getvalue()
+    if up2:
+        st.session_state['photo2'] = up2.getvalue()
+        st.image(st.session_state['photo2'], use_container_width=True) # 사진 미리보기
+    else:
+        st.session_state['photo2'] = None
 
 st.markdown("---")
 
 # ==========================================
-# 5. 현장 사진 (신규 추가)
+# 5. 현장 사진 (업로드 전용 & 미리보기)
 # ==========================================
 st.header("4. 현장 사진")
 col_p3, col_p4 = st.columns(2)
 
 with col_p3:
     st.markdown("**📸 현장 사진 1**")
-    cam3 = st.camera_input("카메라 3", key="cam3", label_visibility="collapsed")
     up3 = st.file_uploader("업로드 3", type=["png", "jpg", "jpeg"], key="up3", label_visibility="collapsed")
-    if cam3: st.session_state['photo3'] = cam3.getvalue()
-    elif up3: st.session_state['photo3'] = up3.getvalue()
+    if up3:
+        st.session_state['photo3'] = up3.getvalue()
+        st.image(st.session_state['photo3'], use_container_width=True) # 사진 미리보기
+    else:
+        st.session_state['photo3'] = None
 
 with col_p4:
     st.markdown("**📸 현장 사진 2**")
-    cam4 = st.camera_input("카메라 4", key="cam4", label_visibility="collapsed")
     up4 = st.file_uploader("업로드 4", type=["png", "jpg", "jpeg"], key="up4", label_visibility="collapsed")
-    if cam4: st.session_state['photo4'] = cam4.getvalue()
-    elif up4: st.session_state['photo4'] = up4.getvalue()
+    if up4:
+        st.session_state['photo4'] = up4.getvalue()
+        st.image(st.session_state['photo4'], use_container_width=True) # 사진 미리보기
+    else:
+        st.session_state['photo4'] = None
 
 st.markdown("---")
 
@@ -295,13 +303,12 @@ def generate_report(align_list, torque_list):
         ws.merge_cells(f"E{row_idx}:H{row_idx}")
 
     # ==========================================
-    # 💡 4. 현장 사진 (4칸 꽉 차게 리사이징)
+    # 💡 현장 사진 엑셀 리사이징 삽입
     # ==========================================
     row_idx += 3
     ws.cell(row=row_idx, column=1, value="4. 현장 사진").font = SUB_FONT
     row_idx += 1
     
-    # 1열 사진 타이틀 (토크렌치)
     ws.cell(row=row_idx, column=1, value="[토크렌치 교정번호]"); apply_style(ws.cell(row=row_idx, column=1), BODY_BOLD, ALIGN_C, THIN_BORDER, SUB_FILL)
     ws.cell(row=row_idx, column=5, value="[토크렌치 세팅 값]"); apply_style(ws.cell(row=row_idx, column=5), BODY_BOLD, ALIGN_C, THIN_BORDER, SUB_FILL)
     ws.merge_cells(f"A{row_idx}:D{row_idx}")
@@ -310,7 +317,6 @@ def generate_report(align_list, torque_list):
     for c in range(6, 9): ws.cell(row=row_idx, column=c).border = THIN_BORDER
     
     row_idx += 1
-    # 1열 사진 데이터 박스 생성
     ws.row_dimensions[row_idx].height = 190
     for c in range(1, 9): ws.cell(row=row_idx, column=c).border = THIN_BORDER
     ws.merge_cells(f"A{row_idx}:D{row_idx}")
@@ -327,7 +333,6 @@ def generate_report(align_list, torque_list):
         ws.add_image(img2, f"E{row_idx}")
 
     row_idx += 1
-    # 2열 사진 타이틀 (현장 사진)
     ws.cell(row=row_idx, column=1, value="[현장 사진 1]"); apply_style(ws.cell(row=row_idx, column=1), BODY_BOLD, ALIGN_C, THIN_BORDER, SUB_FILL)
     ws.cell(row=row_idx, column=5, value="[현장 사진 2]"); apply_style(ws.cell(row=row_idx, column=5), BODY_BOLD, ALIGN_C, THIN_BORDER, SUB_FILL)
     ws.merge_cells(f"A{row_idx}:D{row_idx}")
@@ -336,7 +341,6 @@ def generate_report(align_list, torque_list):
     for c in range(6, 9): ws.cell(row=row_idx, column=c).border = THIN_BORDER
     
     row_idx += 1
-    # 2열 사진 데이터 박스 생성
     ws.row_dimensions[row_idx].height = 190
     for c in range(1, 9): ws.cell(row=row_idx, column=c).border = THIN_BORDER
     ws.merge_cells(f"A{row_idx}:D{row_idx}")
@@ -381,7 +385,6 @@ with col_btn1:
                 
                 formatted_date = doc_date.strftime('%y-%m-%d')
                 
-                # 💡 사진 4개 중 1개라도 있으면 "유", 아니면 "무" 자동 판정
                 if st.session_state['photo1'] or st.session_state['photo2'] or st.session_state['photo3'] or st.session_state['photo4']:
                     photo_status = "유"
                 else:

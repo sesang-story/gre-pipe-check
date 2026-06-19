@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import io
 import json
@@ -24,9 +25,31 @@ st.set_page_config(
 )
 
 # ==========================================
+# 🔍 모바일 손가락 확대(핀치 줌) 강제 허용 설정
+# ==========================================
+st.markdown("""
+    <style>
+        /* 팝업 창 및 이미지에서 터치 액션 강제 허용 */
+        .stApp, div[data-testid="stDialog"], img {
+            touch-action: pan-x pan-y pinch-zoom !important;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
+# 브라우저 뷰포트(Viewport)의 확대 방지 설정을 해제하는 자바스크립트 주입
+components.html("""
+    <script>
+        var meta = parent.document.querySelector('meta[name="viewport"]');
+        if (meta) {
+            meta.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes');
+        }
+    </script>
+""", height=0, width=0)
+
+# ==========================================
 # ⚙️ 구글 클라우드 고유 ID 설정
 # ==========================================
-SPREADSHEET_ID = "여기에_정확한_시트_ID만_넣으세요"
+SPREADSHEET_ID = "1goTmdvN69Axic01bYIarMa3ej8V-pwEivZ9RLrIMTB4"
 
 # 세션 상태 초기화
 if 'align_data' not in st.session_state: st.session_state['align_data'] = []

@@ -9,8 +9,6 @@ from openpyxl.utils import get_column_letter
 from datetime import datetime
 import gspread
 from google.oauth2.service_account import Credentials
-
-# 메일 전송용 라이브러리 추가
 import smtplib
 from email.message import EmailMessage
 
@@ -27,8 +25,9 @@ st.set_page_config(
 # ==========================================
 # ⚙️ 구글 클라우드 고유 ID 설정
 # ==========================================
-SPREADSHEET_ID = "goTmdvN69Axic01bYIarMa3ej8V-pwEivZ9RLrIMTB4"
+SPREADSHEET_ID ="1goTmdvN69Axic01bYIarMa3ej8V-pwEivZ9RLrIMTB4"
 
+# 세션 상태 초기화
 if 'align_data' not in st.session_state: st.session_state['align_data'] = []
 if 'torque_data' not in st.session_state: st.session_state['torque_data'] = []
 if 'photo1' not in st.session_state: st.session_state['photo1'] = None
@@ -70,7 +69,7 @@ final_dept_name = "" if dept_name == "선택 안함" else dept_name
 st.markdown("---")
 
 # ==========================================
-# 2. 기본 점검 사항 
+# 2. 기본 점검 사항
 # ==========================================
 st.header("1. 기본 점검 사항")
 questions = [
@@ -105,9 +104,18 @@ for item in basic_results:
 st.markdown("---")
 
 # ==========================================
-# 3. 데이터 입력 (얼라인먼트 & 토크)
+# 3. 데이터 입력 (얼라인먼트 & 토크) + 기준정보 팝업
 # ==========================================
 st.header("2. 데이터 입력")
+
+# 💡 기준정보 팝업 기능 추가
+with st.expander("📊 GRE PIPE 검사 기준표 보기 (클릭하여 펼치기)"):
+    try:
+        # 깃허브에 reference.jpg 파일이 있으면 불러옵니다.
+        st.image("reference.jpg", caption="GRE PIPE 기준 데이터", use_container_width=True)
+    except:
+        st.info("💡 깃허브에 'reference.jpg'라는 이름으로 기준정보 이미지 파일을 올려두시면 이곳에 표시됩니다!")
+
 st.info("💡 값을 입력한 후 [➕ 추가] 버튼을 안 눌러도, 입력된 값은 보고서에 자동으로 1줄 반영됩니다!")
 
 dia_a = top = port = gap = coup_no = bottom = stb = ""
@@ -370,46 +378,37 @@ def generate_report(align_list, torque_list):
     return output.getvalue()
 
 # ==========================================
-# 7. 버튼 3개 분할 (시트전송, 다운로드, 메일전송)
+# 7. 버튼 3개 분할 및 메일 다중 전송 시스템
 # ==========================================
 col_btn1, col_btn2, col_btn3 = st.columns(3)
 
 with col_btn1:
+    # (디자인 맞춤을 위해 빈 줄 하나 추가)
+    st.markdown("<br>", unsafe_allow_html=True) 
     if st.button("🚀 데이터 전송", type="primary", use_container_width=True):
         with st.spinner("구글 시트에 스마트 요약 누적 중..."):
             try:
                 gcp_creds = json.loads(st.secrets["gcp_service_account"])
                 if "private_key" in gcp_creds:
                     gcp_creds["private_key"] = gcp_creds["private_key"].replace("\\n", "\n")
-                
-                creds = Credentials.from_service_account_info(
-                    gcp_creds, scopes=["https://www.googleapis.com/auth/spreadsheets"]
-                )
-                
+                creds = Credentials.from_service_account_info(gcp_creds, scopes=["https://www.googleapis.com/auth/spreadsheets"])
                 gc = gspread.authorize(creds)
                 sh = gc.open_by_key(SPREADSHEET_ID)
                 
                 formatted_date = doc_date.strftime('%y-%m-%d')
-                
-                if st.session_state['photo1'] or st.session_state['photo2'] or st.session_state['photo3'] or st.session_state['photo4']:
-                    photo_status = "유"
-                else:
-                    photo_status = "무"
-                    
+                photo_status = "유" if (st.session_state['photo1'] or st.session_state['photo2'] or st.session_state['photo3'] or st.session_state['photo4']) else "무"
                 summary_row = [formatted_date, hull_no, block_no, tag_no, final_dept_name, doc_author, overall_status, photo_status]
                 
                 sh.worksheet("기본점검로그").append_row(summary_row)
-                
-                if final_align_data:
-                    sh.worksheet("얼라인먼트로그").append_rows([[formatted_date, hull_no, tag_no] + row for row in final_align_data])
-                if final_torque_data:
-                    sh.worksheet("토크로그").append_rows([[formatted_date, hull_no, tag_no] + row for row in final_torque_data])
+                if final_align_data: sh.worksheet("얼라인먼트로그").append_rows([[formatted_date, hull_no, tag_no] + row for row in final_align_data])
+                if final_torque_data: sh.worksheet("토크로그").append_rows([[formatted_date, hull_no, tag_no] + row for row in final_torque_data])
                 
                 st.success("🎉 구글 시트 데이터 요약 누적 완료!")
             except Exception as e:
                 st.error(f"시트 전송 실패: {e}")
 
 with col_btn2:
+    st.markdown("<br>", unsafe_allow_html=True) 
     try:
         excel_bytes = generate_report(final_align_data, final_torque_data)
         file_name = f"{doc_no}.xlsx"
@@ -424,45 +423,61 @@ with col_btn2:
         st.warning("보고서 엑셀을 생성하는 중 오류가 발생했습니다.")
 
 with col_btn3:
+    # 💡 담당자 이메일 목록 딕셔너리
+    email_dict = {
+        "홍의현 프로 (본인)": "h9222.hong@samsung.com",
+        "김민효 프로": "minhyo7.kim@samsung.com",
+        "최지원 프로": "jw5241.choi@samsung.com",
+        "황보현 프로": "bh0623.hwang@samsung.com",
+        "전민재 프로": "minjae3.jeon@samsung.com"
+    }
+    
+    # 💡 다중 선택창 (버튼 바로 위에 배치)
+    selected_receivers = st.multiselect(
+        "수신자 선택",
+        options=list(email_dict.keys()),
+        default=["홍의현 프로 (본인)"],
+        label_visibility="collapsed"
+    )
+    
     if st.button("📧 메일 전송", use_container_width=True):
-        with st.spinner("사내 메일로 엑셀 보고서를 전송 중..."):
-            try:
-                # 1. 엑셀 파일 굽기
-                excel_bytes = generate_report(final_align_data, final_torque_data)
-                file_name = f"{doc_no}.xlsx"
-                
-                # 2. 지정된 사내 메일 주소
-                target_email = "h9222.hong@samsung.com"
-                
-                # 3. Secrets에서 발신용 구글 계정 정보 가져오기
-                sender_email = st.secrets["email"]["sender_email"]
-                app_pw = st.secrets["email"]["app_password"]
-                
-                # 4. 이메일 세팅 및 첨부
-                msg = EmailMessage()
-                msg['Subject'] = f'[품질검사보고서] {doc_no}'
-                msg['From'] = sender_email
-                msg['To'] = target_email
-                msg.set_content(f"현장에서 작성된 GRE PIPE 품질검사보고서 ({file_name}) 첨부드립니다.\n\n- 발신: 모바일 체크시트 시스템 자동화 발송")
-                
-                msg.add_attachment(
-                    excel_bytes, 
-                    maintype='application', 
-                    subtype='vnd.openxmlformats-officedocument.spreadsheetml.sheet', 
-                    filename=file_name
-                )
-                
-                # 5. 구글 SMTP 서버를 통해 발송
-                with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
-                    smtp.login(sender_email, app_pw)
-                    smtp.send_message(msg)
+        if not selected_receivers:
+            st.warning("메일을 받을 사람을 1명 이상 선택해 주세요!")
+        else:
+            with st.spinner("사내 메일로 엑셀 보고서를 전송 중..."):
+                try:
+                    excel_bytes = generate_report(final_align_data, final_torque_data)
+                    file_name = f"{doc_no}.xlsx"
                     
-                st.success(f"🎉 {target_email}로 전송 완료!")
-                
-            except KeyError:
-                st.error("메일 발송 실패: Streamlit Secrets에 [email] 설정을 추가해 주세요!")
-            except Exception as e:
-                st.error(f"메일 발송 중 오류가 발생했습니다: {e}")
+                    sender_email = st.secrets["email"]["sender_email"]
+                    app_pw = st.secrets["email"]["app_password"]
+                    
+                    # 선택된 사람들의 실제 이메일 주소만 추출
+                    target_emails = [email_dict[name] for name in selected_receivers]
+                    
+                    msg = EmailMessage()
+                    msg['Subject'] = f'[품질검사보고서] {doc_no} 검사 완료 건'
+                    msg['From'] = sender_email
+                    msg['To'] = ", ".join(target_emails) # 💡 여러 명에게 동시 전송
+                    msg.set_content(f"현장에서 작성된 GRE PIPE 품질검사보고서 ({file_name}) 첨부드립니다.\n\n- 점검구역: {doc_area}\n- 점검결과: {overall_status}\n\n*본 메일은 모바일 체크시트 시스템에서 자동 발송되었습니다.")
+                    
+                    msg.add_attachment(
+                        excel_bytes, 
+                        maintype='application', 
+                        subtype='vnd.openxmlformats-officedocument.spreadsheetml.sheet', 
+                        filename=file_name
+                    )
+                    
+                    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+                        smtp.login(sender_email, app_pw)
+                        smtp.send_message(msg)
+                        
+                    st.success(f"🎉 선택하신 {len(target_emails)}명에게 메일 전송 완료!")
+                    
+                except KeyError:
+                    st.error("메일 발송 실패: Streamlit Secrets에 [email] 설정을 확인해 주세요!")
+                except Exception as e:
+                    st.error(f"메일 발송 중 오류가 발생했습니다: {e}")
 
 st.markdown("---")
 if st.button("🔄 새로운 점검 시작 (입력창 초기화)", use_container_width=True):
